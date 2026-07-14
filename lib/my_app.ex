@@ -3,6 +3,7 @@ defmodule MyApp.Application do
 
   def start(_, _) do
     children = [
+      MyApp.Repo,
       {Plug.Cowboy, scheme: :http, plug: MyApp.Router, options: [port: 4000]}
     ]
 
