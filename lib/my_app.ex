@@ -17,7 +17,7 @@ defmodule MyApp.Router do
   plug :dispatch
 
   get "/" do
-    send_resp(conn, 200, "Go to /profile/yourname")
+    send_resp(conn, 200, "hello")
   end
 
   match _ do
