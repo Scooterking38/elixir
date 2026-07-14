@@ -18,7 +18,9 @@ defmodule MyApp.MixProject do
 
   defp deps do
     [
-      {:postgrex, "~> 0.19"}
+      {:plug_cowboy, "~> 2.7"},
+      {:postgrex, "~> 0.22"},
+      {:argon2_elixir, "~> 4.0"}
     ]
   end
 end
