@@ -60,7 +60,7 @@ defmodule MyApp.Router do
     """
     conn
     |> put_resp_content_type("text/html")
-    |> send_resp(200, html)
+    |> send_resp(200, html_content)
   end
 
   match _ do
