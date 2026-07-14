@@ -23,13 +23,14 @@ jobs:
 
 
 
-    # Start BOTH the Elixir server and Ngrok in the exact same step 
+# Start BOTH the Elixir server and Ngrok and keep them alive
     - name: Start Server and Ngrok Tunnel
       env:
         NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
       run: |
-        # 1. Start Elixir in the background and pipe output to a log file
+        # 1. Start Elixir and detach it from GitHub's process tracker
         echo "Starting Elixir server..."
+        export RUNNER_TRACKING_ID=""
         mix run --no-halt > elixir_server.log 2>&1 &
         
         # 2. Download and extract ngrok v3
@@ -40,17 +41,31 @@ jobs:
         # 3. Add authtoken
         ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
         
-        # 4. Start ngrok in the background
+        # 4. Start ngrok in the background (also detached from tracker)
         echo "Starting Ngrok tunnel..."
-        ( timeout 30m ./ngrok http 4000 ) &
+        ( timeout 30m ./ngrok http 4000 ) > ngrok_agent.log 2>&1 &
         
         # 5. Wait to let both processes spin up
         sleep 8
         
-        # 6. Check if Elixir is still running (print logs if it died)
-        if ! ps aux | grep -v grep | grep -q "mix run"; then
-          echo "❌ ERROR: Elixir server crashed immediately! Printing logs:"
+        # 6. RUN DIAGNOSTICS
+        echo "=== RUNNING SYSTEM DIAGNOSTICS ==="
+        
+        # Check if Elixir process is still alive
+        if ps aux | grep -v grep | grep -q "mix"; then
+          echo "✅ Elixir is running successfully."
+        else
+          echo "❌ ERROR: Elixir process died immediately. Here are the logs:"
           cat elixir_server.log
+          exit 1
+        fi
+        
+        # Check if Ngrok process is still alive
+        if ps aux | grep -v grep | grep -q "ngrok"; then
+          echo "✅ Ngrok agent is running successfully."
+        else
+          echo "❌ ERROR: Ngrok died immediately. Here are the logs:"
+          cat ngrok_agent.log
           exit 1
         fi
         
