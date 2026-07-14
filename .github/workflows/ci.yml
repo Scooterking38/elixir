@@ -93,7 +93,7 @@ jobs:
           ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
 
           echo "Starting ngrok..."
-          timeout 3m ./ngrok http 4000 >ngrok_agent.log 2>&1 &
+          timeout 3m ./ngrok http 4000 --url="moved-curiously-badger.ngrok-free.app">ngrok_agent.log 2>&1 &
           NGROK_PID=$!
 
           echo "Waiting for server..."
