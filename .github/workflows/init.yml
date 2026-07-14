@@ -1,0 +1,35 @@
+name: Initialize Database
+
+on:
+  workflow_dispatch:
+
+jobs:
+  init-db:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Create users table
+        run: |
+          psql "$DATABASE_URL" <<'SQL'
+          CREATE TABLE IF NOT EXISTS users (
+              id SERIAL PRIMARY KEY,
+              username TEXT UNIQUE NOT NULL,
+              password_hash TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT NOW()
+          );
+          SQL
+
+      - name: Confirm table exists
+        run: |
+          psql "$DATABASE_URL" -c "\dt"
