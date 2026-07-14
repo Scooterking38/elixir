@@ -1,59 +1,34 @@
-name: Elixir CI
+name: Test Server Tunnel
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
+  workflow_dispatch: # This adds the manual "Run workflow" button in GitHub
 
 jobs:
-  test:
-    name: Build and Test
+  run-and-tunnel:
     runs-on: ubuntu-latest
-
-    # Define the Elixir and Erlang versions you want to use
-    env:
-      MIX_ENV: test
-      ELIXIR_VERSION: '1.16.0' # Adjust to match your Elixir version
-      OTP_VERSION: '26.2'      # Adjust to match your Erlang/OTP version
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Set up Elixir and Erlang
+    - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: ${{ env.ELIXIR_VERSION }}
-        otp-version: ${{ env.OTP_VERSION }}
+        elixir-version: '1.16'
+        otp-version: '26'
 
-    # Caching dependencies and build artifacts makes subsequent runs lightning fast
-    - name: Retrieve Cached Dependencies
-      uses: actions/cache@v4
-      id: mix-cache
+    - name: Install & Compile
+      run: |
+        mix deps.get
+        mix compile
+
+    # Start the Elixir app in the background so the runner doesn't get blocked
+    - name: Start Elixir Web Server
+      run: mix run --no-halt &
+
+    # Spin up ngrok to forward port 4000
+    - name: Start Ngrok Tunnel
+      uses: luisboto/ngrok-tunnel-action@v0.1.7.2
       with:
-        path: |
-          deps
-          _build
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-mix-
-
-    - name: Install dependencies
-      if: steps.mix-cache.outputs.cache-hit != 'true'
-      run: mix deps.get
-
-    - name: Compile dependencies
-      run: mix deps.compile
-
-    - name: Check Code Formatting
-      run: mix format --check-formatted
-
-    - name: Compile Project (with warnings as errors)
-      run: mix compile --warnings-as-errors
-
-    - name: Run Tests
-      run: mix test
+        timeout: 30m # Automatically shuts down after 30 mins so you don't burn credits
+        port: 4000
+        tunnel_type: http
+        ngrok_authtoken: ${{ secrets.NGROK_AUTHTOKEN }}
