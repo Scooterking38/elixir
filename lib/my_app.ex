@@ -1,15 +1,23 @@
 defmodule MyApp do
-  def start do
-    Application.ensure_all_started(:plug_cowboy)
+  use Application
 
-    Plug.Cowboy.http(
-      MyApp.Router,
-      [],
-      port: 4000
+  def start(_type, _args) do
+    children = [
+      {Postgrex,
+       [
+         name: MyApp.DB,
+         url: System.get_env("DATABASE_URL"),
+         pool_size: 5
+       ]},
+      {Plug.Cowboy,
+       scheme: :http,
+       plug: MyApp.Router,
+       options: [port: 4000]}
+    ]
+
+    Supervisor.start_link(
+      children,
+      strategy: :one_for_one
     )
-
-    IO.puts("Server running on port 4000")
-
-    Process.sleep(:infinity)
   end
 end
