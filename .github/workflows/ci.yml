@@ -1,8 +1,7 @@
-
 name: Test Server Tunnel
 
 on:
-  workflow_dispatch: # Manual "Run workflow" button in GitHub
+  workflow_dispatch:
 
 jobs:
   run-and-tunnel:
@@ -16,14 +15,27 @@ jobs:
         elixir-version: '1.16'
         otp-version: '26'
 
+    # --- NEW: CACHING STEP ---
+    - name: Cache Mix Dependencies & Build
+      uses: actions/cache@v4
+      with:
+        # We cache both the downloaded code (deps) and the compiled artifacts (_build)
+        path: |
+          deps
+          _build
+        # The key is bound to the OS, Elixir/OTP version, and a hash of your mix.lock
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        # If there isn't an exact match, restore the most recent similar cache
+        restore-keys: |
+          ${{ runner.os }}-mix-
+
+    # Only run mix deps.get if we didn't get a perfect cache hit
     - name: Install & Compile
       run: |
         mix deps.get
         mix compile
 
-
-
-# Start BOTH the Elixir server and Ngrok and keep them alive
+    # Start BOTH the Elixir server and Ngrok and keep them alive
     - name: Start Server and Ngrok Tunnel
       env:
         NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
@@ -78,6 +90,4 @@ jobs:
         echo "============================================="
 
         # 8. PREVENT STEP TERMINATION: Stream the Elixir log file live
-        # This keeps the step running and lets you see your server's incoming requests!
-        # It will automatically exit after 30 minutes (1800 seconds).
         timeout 30m tail -f elixir_server.log || echo "30-minute timeout reached. Shutting down."
