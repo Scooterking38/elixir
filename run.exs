@@ -1,2 +1,5 @@
-IO.inspect(System.get_env("DATABASE_URL"), label: "DATABASE_URL")
-MyApp.start()
+Application.ensure_all_started(:my_app)
+
+IO.puts("Server running on port 4000")
+
+Process.sleep(:infinity)
