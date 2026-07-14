@@ -2,16 +2,23 @@ defmodule MyApp do
   use Application
 
   def start(_type, _args) do
-    uri = URI.parse(System.get_env("DATABASE_URL"))
+
+    uri =
+      URI.parse(
+        System.get_env("DATABASE_URL")
+      )
+
 
     [username, password] =
       uri.userinfo
       |> URI.decode()
       |> String.split(":", parts: 2)
 
+
     database =
       uri.path
       |> String.trim_leading("/")
+
 
     children = [
       {
@@ -26,15 +33,19 @@ defmodule MyApp do
           pool_size: 5
         ]
       },
+
       {
         Plug.Cowboy,
         [
           scheme: :http,
           plug: MyApp.Router,
-          options: [port: 4000]
+          options: [
+            port: 4000
+          ]
         ]
       }
     ]
+
 
     Supervisor.start_link(
       children,
