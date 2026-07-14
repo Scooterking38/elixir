@@ -3,6 +3,7 @@ defmodule MyApp.Router do
 
   plug :match
   plug :dispatch
+  plug :fetch_cookies
 
 
   get "/" do
@@ -131,49 +132,50 @@ defmodule MyApp.Router do
 
 
   get "/profile/:username" do
-
-    token =
-      conn.cookies["session"]
-
-
-    result =
-      Postgrex.query!(
-        MyApp.DB,
-        """
-        SELECT users.username, users.created_at
-        FROM users
-        JOIN sessions
-        ON users.id = sessions.user_id
-        WHERE sessions.token=$1
-        """,
-        [
-          token
-        ]
+    token = conn.cookies["session"]
+  
+    if token == nil do
+      send_resp(
+        conn,
+        401,
+        "Not logged in"
       )
-
-
-    case result.rows do
-
-      [[name, created]] ->
-
-        send_resp(
-          conn,
-          200,
+    else
+      result =
+        Postgrex.query!(
+          MyApp.DB,
           """
-          Username: #{name}
-          Created: #{created}
-          """
+          SELECT users.username, users.created_at
+          FROM users
+          JOIN sessions
+          ON users.id = sessions.user_id
+          WHERE sessions.token=$1
+          """,
+          [
+            token
+          ]
         )
-
-
-      [] ->
-
-        send_resp(
-          conn,
-          401,
-          "Not logged in"
-        )
-
+  
+      case result.rows do
+        [[name, created]] ->
+          send_resp(
+            conn,
+            200,
+            """
+            Profile
+  
+            Username: #{name}
+            Created: #{created}
+            """
+          )
+  
+        [] ->
+          send_resp(
+            conn,
+            401,
+            "Invalid session"
+          )
+      end
     end
   end
 
