@@ -29,8 +29,8 @@ jobs:
       env:
         NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
       run: |
-        # 1. Download and extract the official ngrok v3 Linux agent
-        wget https://bin.equinox.io/c/b3a9550efaf/ngrok-v3-stable-linux-amd64.tgz
+        # 1. Download and extract the verified official ngrok v3 Linux agent
+        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
         tar -xvzf ngrok-v3-stable-linux-amd64.tgz
         
         # 2. Add your authtoken to config using the v3 command
