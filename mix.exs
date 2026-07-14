@@ -5,7 +5,8 @@ defmodule MyApp.MixProject do
     [
       app: :my_app,
       version: "0.1.0",
-      elixir: "~> 1.17"
+      elixir: "~> 1.16",
+      deps: deps()
     ]
   end
 
