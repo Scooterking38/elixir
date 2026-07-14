@@ -1,157 +1,164 @@
-name: Test Server Tunnel
+# 1. The Supervisor (Boots the server on port 4000)
+defmodule MyApp.Application do
+  use Application
 
-on:
-  push:
-    branches:
-      - "**"
-  workflow_dispatch:
+  def start(_type, _args) do
+    children = [
+      {Plug.Cowboy, scheme: :http, plug: MyApp.Router, options: [port: 4000]}
+    ]
 
-concurrency:
-  group: tunnel-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    opts = [strategy: :one_for_one, name: MyApp.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
+end
 
-jobs:
-  run-and-tunnel:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+# 2. The Web Router & HTML Interface
+defmodule MyApp.Router do
+  use Plug.Router
 
-    env:
-      MIX_ENV: dev
+  plug :match
+  plug :dispatch
+    # Serve the web interface with interactive input
+    get "/" do
+      html_content = """
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Elixir Router Redirector</title>
+          <style>
+              body {
+                  font-family: system-ui, sans-serif;
+                  background-color: #f4f4f9;
+                  color: #333;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  margin: 0;
+              }
+              .card {
+                  background: white;
+                  padding: 2.5rem;
+                  border-radius: 12px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                  text-align: center;
+                  max-width: 400px;
+                  width: 100%;
+              }
+              h1 { color: #6236FF; margin-bottom: 1.5rem; }
+              
+              /* Input & Button Styling */
+              input {
+                  width: 80%;
+                  padding: 10px;
+                  font-size: 1rem;
+                  border: 2px solid #ddd;
+                  border-radius: 6px;
+                  margin-bottom: 1.5rem;
+                  outline: none;
+                  transition: border-color 0.2s;
+              }
+              input:focus {
+                  border-color: #6236FF;
+              }
+              .btn {
+                  display: inline-block;
+                  background-color: #6236FF;
+                  color: white;
+                  text-decoration: none;
+                  padding: 10px 20px;
+                  font-weight: bold;
+                  border-radius: 6px;
+                  transition: background-color 0.2s;
+              }
+              .btn:hover {
+                  background-color: #4922D3;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              <h1>Type Your Name</h1>
+              
+              <input type="text" id="name-input" placeholder="Enter name:">
+              
+              <br>
+              
+              <a href="./profile/guest" id="profile-link" class="btn">Go to Profile</a>
+          </div>
+  
+          <script>
+              const nameInput = document.getElementById('name-input');
+              const profileLink = document.getElementById('profile-link');
+  
+              // Listen for whenever the user types in the input box
+              nameInput.addEventListener('input', (event) => {
+                  const username = event.target.value.trim();
+                  
+                  if (username === '') {
+                      // Fallback if they clear the text box
+                      profileLink.setAttribute('href', './profile/guest');
+                  } else {
+                      // Update the link's href dynamically!
+                      profileLink.setAttribute('href', `./profile/${encodeURIComponent(username)}`);
+                  }
+              });
+          </script>
+      </body>
+      </html>
+      """
+  
+      conn
+      |> put_resp_content_type("text/html")
+      |> send_resp(200, html_content)
+    end
+  # Serve the web interface
+  get "/profile/:username" do
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Elixir Live Portal</title>
+        <style>
+            body {
+                font-family: system-ui, sans-serif;
+                background-color: #f4f4f9;
+                color: #333;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .card {
+                background: white;
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                text-align: center;
+            }
+            h1 { color: #6236FF; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>🤪🤪🤪Hey bruh, I know you are called #{username}.🤕🤕🤕</h1>
+        </div>
+    </body>
+    </html>
+    """
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(200, html_content)
+  end
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.16"
-          otp-version: "26"
-
-      - name: Cache Mix
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-            ~/.hex
-            ~/.cache/rebar3
-          key: >
-            ${{ runner.os }}-otp26-elixir1.16-${{
-              hashFiles(
-                '**/mix.lock',
-                '**/mix.exs',
-                '**/config/*.exs',
-                '**/config/**/*.exs'
-              )
-            }}
-          restore-keys: |
-            ${{ runner.os }}-otp26-elixir1.16-
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mix local.hex --force
-          mix local.rebar --force
-
-          mix deps.get
-
-      - name: Compile application
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Removes only your project's compiled modules.
-          # Dependency builds (cowlib, cowboy, ranch, etc.) remain cached.
-          mix clean
-
-          mix compile --warnings-as-errors
-
-      - name: Start server and ngrok
-        shell: bash
-        env:
-          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
-        run: |
-          set -euo pipefail
-
-          export RUNNER_TRACKING_ID=""
-
-          echo "Starting Elixir server..."
-          mix run --no-halt >elixir_server.log 2>&1 &
-          SERVER_PID=$!
-
-          echo "Downloading ngrok..."
-          wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-
-          tar -xzf ngrok-v3-stable-linux-amd64.tgz
-          chmod +x ngrok
-
-          ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
-
-          echo "Starting ngrok..."
-          timeout 3m ./ngrok http 4000 >ngrok_agent.log 2>&1 &
-          NGROK_PID=$!
-
-          echo "Waiting for server..."
-
-          for _ in {1..20}; do
-            if curl -fs http://127.0.0.1:4000 >/dev/null 2>&1; then
-              echo "✅ Server is ready."
-              break
-            fi
-
-            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-              echo "❌ Server exited."
-              cat elixir_server.log
-              exit 1
-            fi
-
-            sleep 2
-          done
-
-          echo "Waiting for ngrok tunnel..."
-
-          TUNNEL_URL=""
-
-          for _ in {1..15}; do
-            TUNNEL_URL=$(
-              curl -fs http://127.0.0.1:4040/api/tunnels 2>/dev/null \
-              | jq -r '.tunnels[0].public_url // empty'
-            )
-
-            if [ -n "$TUNNEL_URL" ]; then
-              break
-            fi
-
-            if ! kill -0 "$NGROK_PID" 2>/dev/null; then
-              echo "❌ Ngrok exited."
-              cat ngrok_agent.log
-              exit 1
-            fi
-
-            sleep 2
-          done
-
-          if [ -z "$TUNNEL_URL" ]; then
-            echo "❌ Failed to obtain tunnel URL."
-            echo
-            echo "=== ngrok log ==="
-            cat ngrok_agent.log
-            exit 1
-          fi
-
-          echo
-          echo "======================================"
-          echo "Tunnel URL:"
-          echo "$TUNNEL_URL"
-          echo "======================================"
-          echo
-
-          echo "Streaming server logs for 3 minutes..."
-
-          timeout 3m tail -F elixir_server.log || true
-
-          echo
-          echo "3-minute session complete."
+  match _ do
+    send_resp(conn, 404, "Not Found")
+  end
+end
