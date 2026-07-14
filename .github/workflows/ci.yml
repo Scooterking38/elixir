@@ -74,3 +74,10 @@ jobs:
         echo "============================================="
         echo "Your Tunnel URL is: $TUNNEL_URL"
         echo "============================================="
+        echo "Keep-alive active. Streaming server output below..."
+        echo "============================================="
+
+        # 8. PREVENT STEP TERMINATION: Stream the Elixir log file live
+        # This keeps the step running and lets you see your server's incoming requests!
+        # It will automatically exit after 30 minutes (1800 seconds).
+        timeout 30m tail -f elixir_server.log || echo "30-minute timeout reached. Shutting down."
