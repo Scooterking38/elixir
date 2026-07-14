@@ -21,6 +21,6 @@ defmodule MyApp.Router do
   end
 
   match _ do
-    send_resp(conn, 404, "Not Found")
+    send_resp(conn, 404, "poopoo you loser")
   end
 end
