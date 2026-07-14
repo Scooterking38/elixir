@@ -148,7 +148,7 @@ defmodule MyApp.Router do
     </head>
     <body>
         <div class="card">
-            <title>🤪🤪🤪Hey bruh, I know you are called #{username}.🤕🤕🤕</title>
+            <h1>🤪🤪🤪Hey bruh, I know you are called #{username}.🤕🤕🤕</h1>
         </div>
     </body>
     </html>
