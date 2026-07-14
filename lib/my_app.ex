@@ -1,31 +1,15 @@
 defmodule MyApp do
-  def main do
-    url = System.get_env("DATABASE_URL")
+  def start do
+    Application.ensure_all_started(:plug_cowboy)
 
-    IO.puts("Connecting...")
-
-    uri = URI.parse(url)
-
-    IO.inspect(
-      %{
-        scheme: uri.scheme,
-        host: uri.host,
-        path: uri.path
-      },
-      label: "Parsed URL"
+    Plug.Cowboy.http(
+      MyApp.Router,
+      [],
+      port: 4000
     )
 
-    {:ok, pid} =
-      Postgrex.start_link(
-        hostname: uri.host,
-        username: uri.userinfo |> String.split(":") |> hd(),
-        password: uri.userinfo |> String.split(":") |> List.last(),
-        database: String.trim_leading(uri.path, "/"),
-        ssl: true
-      )
+    IO.puts("Server running on port 4000")
 
-    result = Postgrex.query!(pid, "SELECT NOW()", [])
-
-    IO.inspect(result.rows)
+    Process.sleep(:infinity)
   end
 end
