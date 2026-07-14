@@ -20,7 +20,7 @@ defmodule MyApp.Router do
   plug :dispatch
 
   # Serve the web interface
-  get "/" do
+  get "/profile/:username" do
     html_content = """
     <!DOCTYPE html>
     <html lang="en">
@@ -52,16 +52,15 @@ defmodule MyApp.Router do
     </head>
     <body>
         <div class="card">
-            <h1>💜 Hello from Elixir!</h1>
+            <h1>💜 Hello from Elixir! Apparently your name is #{username}</h1>
             <p>This page is being served directly from a GitHub Actions runner.</p>
         </div>
     </body>
     </html>
     """
-
     conn
     |> put_resp_content_type("text/html")
-    |> send_resp(200, html_content)
+    |> send_resp(200, html)
   end
 
   match _ do
