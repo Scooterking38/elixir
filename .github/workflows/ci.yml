@@ -1,7 +1,7 @@
 name: Test Server Tunnel
 
 on:
-  workflow_dispatch: # This adds the manual "Run workflow" button in GitHub
+  workflow_dispatch: # Manual "Run workflow" button in GitHub
 
 jobs:
   run-and-tunnel:
@@ -24,11 +24,26 @@ jobs:
     - name: Start Elixir Web Server
       run: mix run --no-halt &
 
-    # Spin up ngrok to forward port 4000
-    - name: Start Ngrok Tunnel
-      uses: luisboto/ngrok-tunnel-action@v0.1.7.2
-      with:
-        timeout: 30m # Automatically shuts down after 30 mins so you don't burn credits
-        port: 4000
-        tunnel_type: http
-        ngrok_authtoken: ${{ secrets.NGROK_AUTHTOKEN }}
+    # Download, configure, and start modern ngrok v3 manually
+    - name: Start Ngrok Tunnel (v3)
+      env:
+        NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
+      run: |
+        # 1. Download and extract the official ngrok v3 Linux agent
+        wget https://bin.equinox.io/c/b3a9550efaf/ngrok-v3-stable-linux-amd64.tgz
+        tar -xvzf ngrok-v3-stable-linux-amd64.tgz
+        
+        # 2. Add your authtoken to config using the v3 command
+        ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
+        
+        # 3. Spin up the tunnel in the background with a 30-minute timeout
+        ( timeout 30m ./ngrok http 4000 ) &
+        
+        # 4. Give ngrok a few seconds to initialize
+        sleep 5
+        
+        # 5. Extract and print the public URL to the workflow console
+        TUNNEL_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url')
+        echo "============================================="
+        echo "Your Tunnel URL is: $TUNNEL_URL"
+        echo "============================================="
