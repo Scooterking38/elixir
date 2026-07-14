@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: tunnel-${{ github.ref }}
+  group: tunnel-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,17 +22,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Elixir & Erlang
+      - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "26"
           elixir-version: "1.16"
+          otp-version: "26"
 
-      #
-      # Cache dependencies AND compiled dependencies.
-      # The cache is invalidated whenever dependencies or build config changes.
-      # Your own app is deleted from _build before compiling so it is never reused.
-      #
       - name: Cache Mix
         uses: actions/cache@v4
         with:
@@ -42,13 +37,14 @@ jobs:
             ~/.hex
             ~/.cache/rebar3
           key: >
-            ${{ runner.os }}-otp26-elixir1.16-
-            ${{ hashFiles(
-              '**/mix.lock',
-              '**/mix.exs',
-              '**/config/*.exs',
-              '**/config/**/*.exs'
-            ) }}
+            ${{ runner.os }}-otp26-elixir1.16-${{
+              hashFiles(
+                '**/mix.lock',
+                '**/mix.exs',
+                '**/config/*.exs',
+                '**/config/**/*.exs'
+              )
+            }}
           restore-keys: |
             ${{ runner.os }}-otp26-elixir1.16-
 
@@ -62,23 +58,18 @@ jobs:
 
           mix deps.get
 
-      #
-      # Delete ONLY your application's compiled code.
-      # This keeps compiled deps (cowlib, cowboy, ranch, plug, etc.)
-      # while forcing your own project to rebuild.
-      #
       - name: Compile application
         shell: bash
         run: |
           set -euo pipefail
 
-          APP_NAME=$(mix run -e 'IO.puts(Mix.Project.config()[:app])')
-
-          rm -rf "_build/${MIX_ENV}/lib/${APP_NAME}"
+          # Removes only your project's compiled modules.
+          # Dependency builds (cowlib, cowboy, ranch, etc.) remain cached.
+          mix clean
 
           mix compile --warnings-as-errors
 
-      - name: Start server & Ngrok
+      - name: Start server and ngrok
         shell: bash
         env:
           NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
@@ -88,32 +79,26 @@ jobs:
           export RUNNER_TRACKING_ID=""
 
           echo "Starting Elixir server..."
-          mix run --no-halt > elixir_server.log 2>&1 &
-
+          mix run --no-halt >elixir_server.log 2>&1 &
           SERVER_PID=$!
 
           echo "Downloading ngrok..."
           wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
 
           tar -xzf ngrok-v3-stable-linux-amd64.tgz
-
           chmod +x ngrok
 
           ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
 
-          echo "Starting tunnel..."
-
-          timeout 3m ./ngrok http 4000 \
-            > ngrok_agent.log 2>&1 &
-
+          echo "Starting ngrok..."
+          timeout 3m ./ngrok http 4000 >ngrok_agent.log 2>&1 &
           NGROK_PID=$!
 
-          #
-          # Wait for server
-          #
-          for i in {1..15}; do
+          echo "Waiting for server..."
+
+          for _ in {1..20}; do
             if curl -fs http://127.0.0.1:4000 >/dev/null 2>&1; then
-              echo "✅ Server is accepting connections."
+              echo "✅ Server is ready."
               break
             fi
 
@@ -126,18 +111,14 @@ jobs:
             sleep 2
           done
 
-          #
-          # Wait for ngrok API
-          #
+          echo "Waiting for ngrok tunnel..."
+
           TUNNEL_URL=""
 
-          echo "Waiting for tunnel..."
-
-          for i in {1..15}; do
+          for _ in {1..15}; do
             TUNNEL_URL=$(
               curl -fs http://127.0.0.1:4040/api/tunnels 2>/dev/null \
-              | jq -r '.tunnels[]?.public_url' \
-              | head -n1
+              | jq -r '.tunnels[0].public_url // empty'
             )
 
             if [ -n "$TUNNEL_URL" ]; then
@@ -155,24 +136,22 @@ jobs:
 
           if [ -z "$TUNNEL_URL" ]; then
             echo "❌ Failed to obtain tunnel URL."
+            echo
+            echo "=== ngrok log ==="
             cat ngrok_agent.log
             exit 1
           fi
 
-          echo ""
-          echo "=========================================="
+          echo
+          echo "======================================"
           echo "Tunnel URL:"
           echo "$TUNNEL_URL"
-          echo "=========================================="
-          echo ""
+          echo "======================================"
+          echo
 
-          echo "Server PID : $SERVER_PID"
-          echo "Ngrok PID  : $NGROK_PID"
-          echo ""
-          echo "Keeping tunnel alive for 3 minutes..."
-          echo ""
+          echo "Streaming server logs for 3 minutes..."
 
           timeout 3m tail -F elixir_server.log || true
 
-          echo ""
+          echo
           echo "3-minute session complete."
