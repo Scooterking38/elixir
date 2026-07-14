@@ -1,27 +1,14 @@
-defmodule MyApp.Application do
-  use Application
+defmodule MyApp do
+  def main do
+    {:ok, pid} =
+      Postgrex.start_link(
+        url: Application.fetch_env!(:my_app, :database_url)
+      )
 
-  def start(_, _) do
-    children = [
-      MyApp.Repo,
-      {Plug.Cowboy, scheme: :http, plug: MyApp.Router, options: [port: 4000]}
-    ]
+    result = Postgrex.query!(pid, "SELECT NOW()", [])
 
-    Supervisor.start_link(children, strategy: :one_for_one)
+    IO.inspect(result.rows)
   end
 end
 
-defmodule MyApp.Router do
-  use Plug.Router
-
-  plug :match
-  plug :dispatch
-
-  get "/" do
-    send_resp(conn, 200, "hello")
-  end
-
-  match _ do
-    send_resp(conn, 404, "poopoo you loser")
-  end
-end
+MyApp.main()
