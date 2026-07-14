@@ -2,12 +2,27 @@ defmodule MyApp do
   use Application
 
   def start(_type, _args) do
+    uri = URI.parse(System.get_env("DATABASE_URL"))
+
+    [username, password] =
+      uri.userinfo
+      |> URI.decode()
+      |> String.split(":", parts: 2)
+
+    database =
+      uri.path
+      |> String.trim_leading("/")
+
     children = [
       {
         Postgrex,
         [
           name: MyApp.DB,
-          url: System.get_env("DATABASE_URL"),
+          hostname: uri.host,
+          username: username,
+          password: password,
+          database: database,
+          ssl: true,
           pool_size: 5
         ]
       },
