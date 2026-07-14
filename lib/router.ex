@@ -7,10 +7,15 @@ defmodule MyApp.Router do
 
   get "/" do
     send_resp(conn, 200, """
-    Routes:
+    MyApp Auth
 
+    Signup:
     /signup/name/password
+
+    Login:
     /login/name/password
+
+    Profile:
     /profile/name
     """)
   end
@@ -19,7 +24,8 @@ defmodule MyApp.Router do
   get "/signup/:username/:password" do
     result =
       try do
-        hash = Argon2.hash_pwd_salt(password)
+        hash =
+          Argon2.hash_pwd_salt(password)
 
         Postgrex.query!(
           MyApp.DB,
@@ -34,7 +40,7 @@ defmodule MyApp.Router do
           ]
         )
 
-        "Created #{username}"
+        "Created user #{username}"
 
       rescue
         error ->
@@ -128,7 +134,7 @@ defmodule MyApp.Router do
     send_resp(
       conn,
       404,
-      "Not found"
+      "Not Found"
     )
   end
 end
