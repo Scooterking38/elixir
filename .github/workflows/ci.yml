@@ -80,7 +80,7 @@ jobs:
 
           echo "Starting Elixir server..."
           export DATABASE_URL="postgresql://username:password@host/database?sslmode=require"
-          mix run --no-halt >elixir_server.log 2>&1 &
+          mix run run.exs --no-halt >elixir_server.log 2>&1 &
           SERVER_PID=$!
 
           echo "Downloading ngrok..."
