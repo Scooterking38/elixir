@@ -90,4 +90,4 @@ jobs:
         echo "============================================="
 
         # 8. PREVENT STEP TERMINATION: Stream the Elixir log file live
-        timeout 30m tail -f elixir_server.log || echo "30-minute timeout reached. Shutting down."
+        timeout 3m tail -f elixir_server.log || echo "30-minute timeout reached. Shutting down."
