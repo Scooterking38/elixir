@@ -4,15 +4,6 @@ defmodule MyApp.Router do
   plug :match
   plug :dispatch
 
-  def db do
-    {:ok, pid} =
-      Postgrex.start_link(
-        url: System.get_env("DATABASE_URL")
-      )
-
-    pid
-  end
-
 
   get "/" do
     send_resp(conn, 200, """
@@ -31,10 +22,11 @@ defmodule MyApp.Router do
         hash = Argon2.hash_pwd_salt(password)
 
         Postgrex.query!(
-          db(),
+          MyApp.DB,
           """
           INSERT INTO users(username, password_hash)
           VALUES($1, $2)
+          ON CONFLICT (username) DO NOTHING
           """,
           [
             username,
@@ -60,7 +52,7 @@ defmodule MyApp.Router do
   get "/login/:username/:password" do
     result =
       Postgrex.query!(
-        db(),
+        MyApp.DB,
         """
         SELECT password_hash
         FROM users
@@ -100,7 +92,7 @@ defmodule MyApp.Router do
   get "/profile/:username" do
     result =
       Postgrex.query!(
-        db(),
+        MyApp.DB,
         """
         SELECT username, created_at
         FROM users
