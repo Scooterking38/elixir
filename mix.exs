@@ -6,7 +6,7 @@ defmodule MyApp.MixProject do
       app: :my_app,
       version: "0.1.0",
       elixir: "~> 1.14",
-      deps: [{:plug_cowboy, "~> 2.6"}]
+      deps: deps()
     ]
   end
 
@@ -14,6 +14,14 @@ defmodule MyApp.MixProject do
     [
       extra_applications: [:logger],
       mod: {MyApp.Application, []}
+    ]
+  end
+
+  defp deps do
+    [
+      {:plug_cowboy, "~> 2.6"},
+      {:ecto_sql, "~> 3.13"},
+      {:postgrex, ">= 0.0.0"}
     ]
   end
 end
