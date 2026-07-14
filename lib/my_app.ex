@@ -83,7 +83,7 @@ defmodule MyApp.Router do
           <div class="card">
               <h1>Type Your Name</h1>
               
-              <input type="text" id="name-input" placeholder="Enter username...">
+              <input type="text" id="name-input" placeholder="Enter name:">
               
               <br>
               
@@ -148,8 +148,7 @@ defmodule MyApp.Router do
     </head>
     <body>
         <div class="card">
-            <h1>💜 Hello from Elixir! Apparently your name is #{username}</h1>
-            <p>This page is being served directly from a GitHub Actions runner.</p>
+            <title>🤪🤪🤪Apparently your name is #{username}.🤕🤕🤕</title>
         </div>
     </body>
     </html>
