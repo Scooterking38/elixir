@@ -1,3 +1,4 @@
-config :my_app, MyApp.Repo,
-  url: System.get_env("DATABASE_URL"),
-  pool_size: 10
+import Config
+
+config :my_app,
+  database_url: System.get_env("DATABASE_URL")
