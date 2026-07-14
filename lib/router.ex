@@ -60,7 +60,7 @@ defmodule MyApp.Router do
       Postgrex.query!(
         MyApp.DB,
         """
-        SELECT password_hash
+        SELECT id, password_hash
         FROM users
         WHERE username=$1
         """,
@@ -69,48 +69,93 @@ defmodule MyApp.Router do
         ]
       )
 
+
     case result.rows do
-      [[hash]] ->
+
+      [[user_id, hash]] ->
+
         if Argon2.verify_pass(password, hash) do
-          send_resp(
-            conn,
+
+          token =
+            :crypto.strong_rand_bytes(32)
+            |> Base.url_encode64()
+
+
+          Postgrex.query!(
+            MyApp.DB,
+            """
+            INSERT INTO sessions(user_id, token)
+            VALUES($1,$2)
+            """,
+            [
+              user_id,
+              token
+            ]
+          )
+
+
+          conn
+          |> put_resp_cookie(
+            "session",
+            token,
+            http_only: true
+          )
+          |> send_resp(
             200,
             "Logged in as #{username}"
           )
+
+
         else
+
           send_resp(
             conn,
             401,
             "Wrong password"
           )
+
         end
 
+
       [] ->
+
         send_resp(
           conn,
           404,
           "User not found"
         )
+
     end
   end
 
 
+
   get "/profile/:username" do
+
+    token =
+      conn.cookies["session"]
+
+
     result =
       Postgrex.query!(
         MyApp.DB,
         """
-        SELECT username, created_at
+        SELECT users.username, users.created_at
         FROM users
-        WHERE username=$1
+        JOIN sessions
+        ON users.id = sessions.user_id
+        WHERE sessions.token=$1
         """,
         [
-          username
+          token
         ]
       )
 
+
     case result.rows do
+
       [[name, created]] ->
+
         send_resp(
           conn,
           200,
@@ -120,14 +165,18 @@ defmodule MyApp.Router do
           """
         )
 
+
       [] ->
+
         send_resp(
           conn,
-          404,
-          "No profile"
+          401,
+          "Not logged in"
         )
+
     end
   end
+
 
 
   match _ do
