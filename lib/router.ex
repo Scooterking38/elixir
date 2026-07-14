@@ -4,7 +4,6 @@ defmodule MyApp.Router do
   plug :match
   plug :dispatch
 
-
   def db do
     {:ok, pid} =
       Postgrex.start_link(
@@ -27,32 +26,38 @@ defmodule MyApp.Router do
 
 
   get "/signup/:username/:password" do
+    result =
+      try do
+        hash = Argon2.hash_pwd_salt(password)
 
-    hash =
-      Argon2.hash_pwd_salt(password)
+        Postgrex.query!(
+          db(),
+          """
+          INSERT INTO users(username, password_hash)
+          VALUES($1, $2)
+          """,
+          [
+            username,
+            hash
+          ]
+        )
 
-    Postgrex.query!(
-      db(),
-      """
-      INSERT INTO users(username,password_hash)
-      VALUES($1,$2)
-      """,
-      [
-        username,
-        hash
-      ]
-    )
+        "Created #{username}"
+
+      rescue
+        error ->
+          "Signup error: #{inspect(error)}"
+      end
 
     send_resp(
       conn,
       200,
-      "Created #{username}"
+      result
     )
   end
 
 
   get "/login/:username/:password" do
-
     result =
       Postgrex.query!(
         db(),
@@ -66,11 +71,8 @@ defmodule MyApp.Router do
         ]
       )
 
-
     case result.rows do
-
       [[hash]] ->
-
         if Argon2.verify_pass(password, hash) do
           send_resp(
             conn,
@@ -85,20 +87,17 @@ defmodule MyApp.Router do
           )
         end
 
-
       [] ->
         send_resp(
           conn,
           404,
-          "User does not exist"
+          "User not found"
         )
-
     end
   end
 
 
   get "/profile/:username" do
-
     result =
       Postgrex.query!(
         db(),
@@ -112,11 +111,8 @@ defmodule MyApp.Router do
         ]
       )
 
-
     case result.rows do
-
       [[name, created]] ->
-
         send_resp(
           conn,
           200,
@@ -137,6 +133,10 @@ defmodule MyApp.Router do
 
 
   match _ do
-    send_resp(conn,404,"Not found")
+    send_resp(
+      conn,
+      404,
+      "Not found"
+    )
   end
 end
