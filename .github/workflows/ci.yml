@@ -1,3 +1,4 @@
+
 name: Test Server Tunnel
 
 on:
@@ -20,29 +21,40 @@ jobs:
         mix deps.get
         mix compile
 
-    # Start the Elixir app in the background so the runner doesn't get blocked
-    - name: Start Elixir Web Server
-      run: mix run --no-halt &
 
-    # Download, configure, and start modern ngrok v3 manually
-    - name: Start Ngrok Tunnel (v3)
+
+    # Start BOTH the Elixir server and Ngrok in the exact same step 
+    - name: Start Server and Ngrok Tunnel
       env:
         NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
       run: |
-        # 1. Download and extract the verified official ngrok v3 Linux agent
-        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+        # 1. Start Elixir in the background and pipe output to a log file
+        echo "Starting Elixir server..."
+        mix run --no-halt > elixir_server.log 2>&1 &
+        
+        # 2. Download and extract ngrok v3
+        echo "Downloading Ngrok..."
+        wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
         tar -xvzf ngrok-v3-stable-linux-amd64.tgz
         
-        # 2. Add your authtoken to config using the v3 command
+        # 3. Add authtoken
         ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
         
-        # 3. Spin up the tunnel in the background with a 30-minute timeout
+        # 4. Start ngrok in the background
+        echo "Starting Ngrok tunnel..."
         ( timeout 30m ./ngrok http 4000 ) &
         
-        # 4. Give ngrok a few seconds to initialize
-        sleep 5
+        # 5. Wait to let both processes spin up
+        sleep 8
         
-        # 5. Extract and print the public URL to the workflow console
+        # 6. Check if Elixir is still running (print logs if it died)
+        if ! ps aux | grep -v grep | grep -q "mix run"; then
+          echo "❌ ERROR: Elixir server crashed immediately! Printing logs:"
+          cat elixir_server.log
+          exit 1
+        fi
+        
+        # 7. Print the Tunnel URL
         TUNNEL_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url')
         echo "============================================="
         echo "Your Tunnel URL is: $TUNNEL_URL"
