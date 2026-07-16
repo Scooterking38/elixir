@@ -130,8 +130,10 @@ defmodule MyApp.Router do
   end
 
 
-
-  get "/profile/:username" do
+  # No dynamic :name in the route anymore!
+  get "/profile" do
+    # Fetch the query parameter ?username=... from the URL
+    username = Map.get(conn.params, "username")
     token = conn.cookies["session"]
   
     if token == nil do
@@ -164,7 +166,7 @@ defmodule MyApp.Router do
             """
             Profile
   
-            Username: #{name}
+            Username: #{username}
             Created: #{created}
             """
           )
