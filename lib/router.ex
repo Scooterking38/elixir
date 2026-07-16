@@ -90,55 +90,51 @@ defmodule MyApp.Router do
   end
 
   get "/profile" do
-    username_param = Map.get(conn.params, "username")
-    token = conn.cookies["session"]
-
-    if token == nil do
-      send_resp(conn, 401, "Not logged in")
-    else
-      result =
-        Postgrex.query!(
-          MyApp.DB,
-          """
-          SELECT users.username, users.created_at
-          FROM users
-          JOIN sessions
-          ON users.id = sessions.user_id
-          WHERE sessions.token=$1
-          """,
-          [token]
-        )
-
-      case result.rows do
-        [[name, created]] ->
-          # Cleaned up the nested case block here. We check if the session
-          # matches the requested username query param (if one was provided)
-          if is_nil(username_param) or username_param == name do
-            send_resp(
-              conn,
-              200,
-              """
-              Profile
-
-              Username: #{name}
-              Created: #{created}
-              """
-            )
-          else
-            send_resp(
-              conn,
-              403,
-              ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">)
-            )
-          end
-
-        [] ->
-          send_resp(conn, 401, "Invalid session")
+      # 1. Fetch query parameters so conn.params isn't empty and doesn't crash
+      conn = fetch_query_params(conn)
+      
+      username_param = Map.get(conn.params, "username")
+      token = conn.cookies["session"]
+  
+      if token == nil do
+        send_resp(conn, 401, "Not logged in")
+      else
+        result =
+          Postgrex.query!(
+            MyApp.DB,
+            """
+            SELECT users.username, users.created_at
+            FROM users
+            JOIN sessions
+            ON users.id = sessions.user_id
+            WHERE sessions.token=$1
+            """,
+            [token]
+          )
+  
+        case result.rows do
+          [[name, created]] ->
+            if is_nil(username_param) or username_param == name do
+              send_resp(
+                conn,
+                200,
+                """
+                Profile
+  
+                Username: #{name}
+                Created: #{created}
+                """
+              )
+            else
+              send_resp(
+                conn,
+                403,
+                ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">)
+              )
+            end
+  
+          [] ->
+            send_resp(conn, 401, "Invalid session")
+        end
       end
     end
-  end
-
-  match _ do
-    send_resp(conn, 404, "Not Found")
-  end
-end
