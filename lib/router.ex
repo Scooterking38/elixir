@@ -2,9 +2,14 @@ defmodule MyApp.Router do
   use Plug.Router
 
   plug :match
+  
+  # 1. Added parsers so conn.params actually works for query strings
+  plug Plug.Parsers,
+    parsers: [:urlencoded],
+    pass: ["*/*"]
+
   plug :dispatch
   plug :fetch_cookies
-
 
   get "/" do
     send_resp(conn, 200, """
@@ -17,16 +22,14 @@ defmodule MyApp.Router do
     /login/name/password
 
     Profile:
-    /profile/name
+    /profile
     """)
   end
-
 
   get "/signup/:username/:password" do
     result =
       try do
-        hash =
-          Argon2.hash_pwd_salt(password)
+        hash = Argon2.hash_pwd_salt(password)
 
         Postgrex.query!(
           MyApp.DB,
@@ -35,26 +38,16 @@ defmodule MyApp.Router do
           VALUES($1, $2)
           ON CONFLICT (username) DO NOTHING
           """,
-          [
-            username,
-            hash
-          ]
+          [username, hash]
         )
 
         "Created user #{username}"
-
       rescue
-        error ->
-          "Signup error: #{inspect(error)}"
+        error -> "Signup error: #{inspect(error)}"
       end
 
-    send_resp(
-      conn,
-      200,
-      result
-    )
+    send_resp(conn, 200, result)
   end
-
 
   get "/login/:username/:password" do
     result =
@@ -65,22 +58,15 @@ defmodule MyApp.Router do
         FROM users
         WHERE username=$1
         """,
-        [
-          username
-        ]
+        [username]
       )
 
-
     case result.rows do
-
       [[user_id, hash]] ->
-
         if Argon2.verify_pass(password, hash) do
-
           token =
             :crypto.strong_rand_bytes(32)
             |> Base.url_encode64()
-
 
           Postgrex.query!(
             MyApp.DB,
@@ -88,60 +74,27 @@ defmodule MyApp.Router do
             INSERT INTO sessions(user_id, token)
             VALUES($1,$2)
             """,
-            [
-              user_id,
-              token
-            ]
+            [user_id, token]
           )
-
 
           conn
-          |> put_resp_cookie(
-            "session",
-            token,
-            http_only: true
-          )
-          |> send_resp(
-            200,
-            "Logged in as #{username}"
-          )
-
-
+          |> put_resp_cookie("session", token, http_only: true)
+          |> send_resp(200, "Logged in as #{username}")
         else
-
-          send_resp(
-            conn,
-            401,
-            "Wrong password"
-          )
-
+          send_resp(conn, 401, "Wrong password")
         end
 
-
       [] ->
-
-        send_resp(
-          conn,
-          404,
-          "User not found"
-        )
-
+        send_resp(conn, 404, "User not found")
     end
   end
 
-
-  # No dynamic :name in the route anymore!
   get "/profile" do
-    # Fetch the query parameter ?username=... from the URL
-    username = Map.get(conn.params, "username")
+    username_param = Map.get(conn.params, "username")
     token = conn.cookies["session"]
-  
+
     if token == nil do
-      send_resp(
-        conn,
-        401,
-        "Not logged in"
-      )
+      send_resp(conn, 401, "Not logged in")
     else
       result =
         Postgrex.query!(
@@ -153,48 +106,39 @@ defmodule MyApp.Router do
           ON users.id = sessions.user_id
           WHERE sessions.token=$1
           """,
-          [
-            token
-          ]
+          [token]
         )
-  
+
       case result.rows do
         [[name, created]] ->
-          case name do 
-            [username] ->
-              send_resp(
-                conn,
-                200,
-                """
-                Profile
-  
-                Username: #{username}
-                Created: #{created}
-                """
-              )
-            [] ->
-              send_resp(
-                conn,
-                403,
-                ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">)
-              )
+          # Cleaned up the nested case block here. We check if the session
+          # matches the requested username query param (if one was provided)
+          if is_nil(username_param) or username_param == name do
+            send_resp(
+              conn,
+              200,
+              """
+              Profile
+
+              Username: #{name}
+              Created: #{created}
+              """
+            )
+          else
+            send_resp(
+              conn,
+              403,
+              ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">)
+            )
+          end
+
         [] ->
-          send_resp(
-            conn,
-            401,
-            "Invalid session"
-          )
+          send_resp(conn, 401, "Invalid session")
       end
     end
   end
 
-
-
   match _ do
-    send_resp(
-      conn,
-      404,
-      "Not Found"
-    )
+    send_resp(conn, 404, "Not Found")
   end
 end
