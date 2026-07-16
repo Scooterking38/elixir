@@ -2,8 +2,8 @@ defmodule MyApp.Router do
   use Plug.Router
 
   plug :match
-  
-  # 1. Added parsers so conn.params actually works for query strings
+
+  # Parsers are required so your application can read form data and query strings
   plug Plug.Parsers,
     parsers: [:urlencoded],
     pass: ["*/*"]
@@ -11,21 +11,35 @@ defmodule MyApp.Router do
   plug :dispatch
   plug :fetch_cookies
 
+  # 1. The Home Page (Zero JavaScript Form)
   get "/" do
     send_resp(conn, 200, """
-    MyApp Auth
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <h1>MyApp Auth</h1>
+        
+        <h3>Log In (Queries /profile directly)</h3>
+        <form action="/profile" method="GET">
+            <label>Username:</label>
+            <input type="text" name="username" required>
+            <button type="submit">View Profile</button>
+        </form>
 
-    Signup:
-    /signup/name/password
+        <hr>
 
-    Login:
-    /login/name/password
-
-    Profile:
-    /profile
+        <h3>Manual API Reference:</h3>
+        <ul>
+            <li>Signup: <code>/signup/name/password</code></li>
+            <li>Login: <code>/login/name/password</code></li>
+            <li>Profile: <code>/profile</code></li>
+        </ul>
+    </body>
+    </html>
     """)
   end
 
+  # 2. User Registration Endpoint
   get "/signup/:username/:password" do
     result =
       try do
@@ -49,6 +63,7 @@ defmodule MyApp.Router do
     send_resp(conn, 200, result)
   end
 
+  # 3. User Login (Generates and Sets Session Cookie)
   get "/login/:username/:password" do
     result =
       Postgrex.query!(
@@ -89,52 +104,61 @@ defmodule MyApp.Router do
     end
   end
 
+  # 4. Authenticated Profile Page (Supports optional ?username query param)
   get "/profile" do
-      # 1. Fetch query parameters so conn.params isn't empty and doesn't crash
-      conn = fetch_query_params(conn)
-      
-      username_param = Map.get(conn.params, "username")
-      token = conn.cookies["session"]
-  
-      if token == nil do
-        send_resp(conn, 401, "Not logged in")
-      else
-        result =
-          Postgrex.query!(
-            MyApp.DB,
-            """
-            SELECT users.username, users.created_at
-            FROM users
-            JOIN sessions
-            ON users.id = sessions.user_id
-            WHERE sessions.token=$1
-            """,
-            [token]
-          )
-  
-        case result.rows do
-          [[name, created]] ->
-            if is_nil(username_param) or username_param == name do
-              send_resp(
-                conn,
-                200,
-                """
-                Profile
-  
-                Username: #{name}
-                Created: #{created}
-                """
-              )
-            else
-              send_resp(
-                conn,
-                403,
-                ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">)
-              )
-            end
-  
-          [] ->
-            send_resp(conn, 401, "Invalid session")
-        end
+    # Fetch incoming query parameters so conn.params is populated
+    conn = fetch_query_params(conn)
+    
+    username_param = Map.get(conn.params, "username")
+    token = conn.cookies["session"]
+
+    if token == nil do
+      send_resp(conn, 401, "Not logged in")
+    else
+      result =
+        Postgrex.query!(
+          MyApp.DB,
+          """
+          SELECT users.username, users.created_at
+          FROM users
+          JOIN sessions
+          ON users.id = sessions.user_id
+          WHERE sessions.token=$1
+          """,
+          [token]
+        )
+
+      case result.rows do
+        [[name, created]] ->
+          # Check if the query parameter matches the logged-in session user
+          if is_nil(username_param) or username_param == name do
+            send_resp(
+              conn,
+              200,
+              """
+              Profile
+
+              Username: #{name}
+              Created: #{created}
+              """
+            )
+          else
+            # Access forbidden - show image
+            send_resp(
+              conn,
+              403,
+              ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">)
+            )
+          end
+
+        [] ->
+          send_resp(conn, 401, "Invalid session")
       end
     end
+  end
+
+  # Catch-all Route
+  match _ do
+    send_resp(conn, 404, "Not Found")
+  end
+end
