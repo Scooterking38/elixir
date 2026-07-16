@@ -176,7 +176,7 @@ defmodule MyApp.Router do
               send_resp(
                 conn,
                 403,
-                "<img href="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg"><img>"
+                "<%= ~s(<img src="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg">) %>"
               )
         [] ->
           send_resp(
