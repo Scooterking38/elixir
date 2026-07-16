@@ -160,17 +160,24 @@ defmodule MyApp.Router do
   
       case result.rows do
         [[name, created]] ->
-          send_resp(
-            conn,
-            200,
-            """
-            Profile
+          case name do 
+            [username] ->
+              send_resp(
+                conn,
+                200,
+                """
+                Profile
   
-            Username: #{username}
-            Created: #{created}
-            """
-          )
-  
+                Username: #{username}
+                Created: #{created}
+                """
+              )
+            [] ->
+              send_resp(
+                conn,
+                403,
+                "<img href="https://wcti12.com/resources/media/61beaa02-ddd0-4d19-a040-edf2da650e47-large16x9_massage.jpg"><img>"
+              )
         [] ->
           send_resp(
             conn,
