@@ -17,9 +17,15 @@ defmodule MyApp.Router do
     <!DOCTYPE html>
     <html>
     <body>
-        <h1>MyApp Auth</h1>
-        
-        <h3>Log In (Queries /profile directly)</h3>
+        <h1>Authentication</h1>
+        <h3>LOGIN</h3>
+        <form action="/signup" method="GET">
+            <label>Username:</label>
+            <input type="text" name="username" required>
+            <input type="password" name="password" required>
+            <button type="submit">Signup</button>
+        </form>
+        <h3>PROFILE</h3>
         <form action="/profile" method="GET">
             <label>Username:</label>
             <input type="text" name="username" required>
@@ -27,13 +33,6 @@ defmodule MyApp.Router do
         </form>
 
         <hr>
-
-        <h3>Manual API Reference:</h3>
-        <ul>
-            <li>Signup: <code>/signup/name/password</code></li>
-            <li>Login: <code>/login/name/password</code></li>
-            <li>Profile: <code>/profile</code></li>
-        </ul>
     </body>
     </html>
     """)
