@@ -62,11 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          # Removes only your project's compiled modules.
-          # Dependency builds (cowlib, cowboy, ranch, etc.) remain cached.
-          mix clean
-
+          # Removed 'mix clean' to preserve your compilation cache.
           mix compile --warnings-as-errors
 
       - name: Start server and ngrok
@@ -80,7 +76,6 @@ jobs:
           export RUNNER_TRACKING_ID=""
 
           echo "Starting Elixir server..."
-
           mix run run.exs --no-halt >elixir_server.log 2>&1 &
           SERVER_PID=$!
 
@@ -93,12 +88,12 @@ jobs:
           ./ngrok config add-authtoken "$NGROK_AUTHTOKEN"
 
           echo "Starting ngrok..."
-          timeout 3m ./ngrok http 4000 --url="moved-curiously-badger.ngrok-free.app">ngrok_agent.log 2>&1 &
+          timeout 3m ./ngrok http 4000 --url="moved-curiously-badger.ngrok-free.app" >ngrok_agent.log 2>&1 &
           NGROK_PID=$!
 
           echo "Waiting for server..."
-
-          for _ in {1..20}; do
+          # Checked every 0.5 seconds instead of 2 seconds for instant detection
+          for _ in {1..40}; do
             if curl -fs http://127.0.0.1:4000 >/dev/null 2>&1; then
               echo "✅ Server is ready."
               break
@@ -110,14 +105,12 @@ jobs:
               exit 1
             fi
 
-            sleep 2
+            sleep 0.5
           done
 
           echo "Waiting for ngrok tunnel..."
-
           TUNNEL_URL=""
-
-          for _ in {1..15}; do
+          for _ in {1..30}; do
             TUNNEL_URL=$(
               curl -fs http://127.0.0.1:4040/api/tunnels 2>/dev/null \
               | jq -r '.tunnels[0].public_url // empty'
@@ -133,7 +126,7 @@ jobs:
               exit 1
             fi
 
-            sleep 2
+            sleep 0.5
           done
 
           if [ -z "$TUNNEL_URL" ]; then
@@ -151,9 +144,6 @@ jobs:
           echo "======================================"
           echo
 
-          echo "Streaming server logs for 3 minutes..."
-
-          timeout 3m tail -F elixir_server.log || true
-
-          echo
-          echo "3-minute session complete."
+          echo "=== Server Boot Logs ==="
+          cat elixir_server.log
+          echo "========================"
