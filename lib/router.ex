@@ -5,7 +5,7 @@ defmodule MyApp.Router do
   
   # Parsers must handle both urlencoded forms and json if necessary
   plug Plug.Parsers,
-    parsers: [:urlencoded, :json],
+    parsers: [:urlencoded],
     pass: ["*/*"],
     json_decoder: Jason
 
