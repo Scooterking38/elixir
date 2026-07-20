@@ -22,7 +22,7 @@ defmodule MyApp.Router do
     |> put_resp_content_type("text/html")
     |> send_resp(
       200,
-      ~s(<img src="https://http.dog/#{code}.jpg" alt="HTTP #{code}" />)
+      ~s(<img src="https://http.dog/#{code}.jpg" alt="HTTP #{code}" /><img src="https://http.cat/#{code}.jpg" alt="HTTP #{code}" /><img src="https://http.fish/#{code}.jpg" alt="HTTP #{code}" /><img src="https://http.pizza/#{code}.jpg" alt="HTTP #{code}" />)
     )
   end
 
