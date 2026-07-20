@@ -16,7 +16,7 @@ defmodule MyApp.Router do
   end
 
   get "/:code" do
-    send_resp(conn, 200, "<img href="https://http.dog/#{code}.jpg"></img>")
+    send_resp(conn, 200, "<img src=\"https://http.dog/#{code}.jpg\" />")
 
     
   end
