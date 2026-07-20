@@ -11,15 +11,14 @@ defmodule MyApp.Router do
   plug :fetch_cookies
   plug :dispatch
 
-  # 1. Handle the literal root URL "/"
   get "/" do
     send_resp(conn, 200, "Welcome! You are at the home root.")
   end
 
-  # 2. Handle dynamic single segments (e.g., /hello, /about)
-  get "/:url" do
-    # FIX: Changed ${url} to Elixir's native # {url} interpolation
-    send_resp(conn, 200, "you visited #{url}")
+  get "/:code" do
+    send_resp(conn, 200, "<img href="https://http.dog/#{code}.jpg"></img>")
+
+    
   end
 
   # 3. Catch-all fallback so missing paths return a 404 instead of crashing
